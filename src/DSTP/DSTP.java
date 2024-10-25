@@ -54,6 +54,7 @@ public class DSTP {
     private static MessageDigest hash = null;
     private static Mac hMac = null;
     private static SecretKey hMacKey = null;
+    private static byte[] keyBytes = null;
 
 
     public static void main(String[] args) throws Exception {
@@ -69,9 +70,11 @@ public class DSTP {
         }
         ciphersuite=prop.getProperty("CONFIDENTIALIY"); 
         System.out.println("Confidentiality Read: "+ ciphersuite);
-
+        //! GCM 
+        //! tem que se criar um iv novo para cada 
+        //! SHASHA precisam de coisas adicionais
         
-        byte[] keyBytes = Base64.getDecoder().decode(prop.getProperty("SYMMETRIC_KEY"));
+        keyBytes = Base64.getDecoder().decode(prop.getProperty("SYMMETRIC_KEY"));
         System.out.println("SymetricKey Read: "+Utils.toString(keyBytes));
         
 
@@ -90,11 +93,15 @@ public class DSTP {
         }
         System.out.println(" Size: "+ keyBytes.length);
         
+        //key = keyBytes;
 
-        //key = new SecretKeySpec(keyBytes, ciphersuite.split("/")[0]);
-
-        key = new SecretKeySpec(keyBytes, "AES");
-        key = new SecreteKey
+        
+        
+        //key = new SecretKeySpec(keyBytes, "AES");
+        //! HERE
+        //! na SecretKeySpec() o que meter?
+       //! fazer do formato do packet q o prof pediu ou o que explicou 
+        //! se meter CMAC o 
 
 
 
@@ -217,7 +224,7 @@ static private void send(byte[] inByteArray)  throws Exception {
         //ENCRYPTS DSTPPayload
         Cipher cipher = Cipher.getInstance(ciphersuite);
         if(ivSpec != null){
-            cipher.init(Cipher.ENCRYPT_MODE, key,ivSpec);
+            cipher.init(Cipher.ENCRYPT_MODE, keyBytes,ivSpec);
         }else{
             cipher.init(Cipher.ENCRYPT_MODE, key);
         }
@@ -305,50 +312,6 @@ static private void send(byte[] inByteArray)  throws Exception {
         hash.update(extractedMessageBytes);
         System.out.println(" verified: " + MessageDigest.isEqual(hash.digest(), extractedHashIn));
 
-
-	      
-/* 
-            DatagramPacket sendPacket = new DatagramPacket(DSTPHeader, DSTPHeader.length, address, port);
-	    // Send the data (block)
-            socket.send(sendPacket);
-            System.out.println("Sent: Sequence number = " + sequenceNumber);
-
-	    // Control the receivd ack	    
-            boolean ackRec; 
-
-            while (true) {
-		// Create packet for datagram ack
-                byte[] ack = new byte[2]; 
-                DatagramPacket ackpack = new DatagramPacket(ack, ack.length);
-
-                try {
-		    // Wait server to send the ack		    
-                    socket.setSoTimeout(50); 
-                    socket.receive(ackpack);
-		    // Lets control the received sequence number
-                    ackSequence = ((ack[0] & 0xff) << 8) + (ack[1] & 0xff);
-		    // ok received and ack		    
-                    ackRec = true;
-                } catch (SocketTimeoutException e) {
-                    System.out.println("Expired time out waiting for ack");
-		    // Not receive an ack		    
-                    ackRec = false; 
-                }
-
-		// If recived correct ack ...
-
-                if ((ackSequence == sequenceNumber) && (ackRec)) {
-                    System.out.println("Ack received: Sequence Number = " + ackSequence);
-                    break;
-		    //
-                }
-		// Was not received, will resend the packet (and block)
-                else {
-                    socket.send(sendPacket);
-                    System.out.println("Resending: Sequence Number = " + sequenceNumber);
-                }
-            }*/
-        
     }
 
   
