@@ -298,15 +298,20 @@ static private void send(byte[] inByteArray)  throws Exception {
         ptLength += cipher.doFinal(extractedDSTPPayload, ptLength);
         //PAYLOAD
 
+        int hashSize = hash.getDigestLength();
 
         int extractedSequenceNumber = ((extractedDSTPPayload[0] & 0xFF) << 8) | (extractedDSTPPayload[1] & 0xFF); // Sequence number
         System.out.println("Extracted Sequence Number: " + extractedSequenceNumber);
-        byte[] extractedMessageBytes = new byte[extractedPayloadLen -2- sendHash.length]; // Adjust as needed
+
+        byte[] extractedMessageBytes = new byte[extractedPayloadLen -2- hashSize]; // Adjust as needed
         System.arraycopy(extractedDSTPPayload, 2, extractedMessageBytes, 0, extractedMessageBytes.length); // Adjust offset if needed
-        byte[] extractedHashIn = new byte[sendHash.length];
-        System.arraycopy(extractedDSTPPayload, 2+extractedMessageBytes.length, extractedHashIn, 0, extractedHashIn.length); // Adjust offset if needed
         System.out.println("Extracted Message: " + Utils.toString(extractedMessageBytes));
+
+        
+        byte[] extractedHashIn = new byte[hashSize];
+        System.arraycopy(extractedDSTPPayload, 2+extractedMessageBytes.length, extractedHashIn, 0, extractedHashIn.length); // Adjust offset if needed
         System.out.println("Extracted Hash: " + Utils.toString(extractedHashIn));
+
         hash.update(extractedMessageBytes);
         System.out.println(" verified: " + MessageDigest.isEqual(hash.digest(), extractedHashIn));
 
