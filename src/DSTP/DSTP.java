@@ -10,9 +10,24 @@ import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.InetAddress;
 import java.net.SocketTimeoutException;
+import java.security.InvalidAlgorithmParameterException;
+import java.security.InvalidKeyException;
+import java.security.Key;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.security.SecureRandom;
 import java.util.Base64;
 import java.util.Properties;
 
+import javax.crypto.BadPaddingException;
+import javax.crypto.Cipher;
+import javax.crypto.IllegalBlockSizeException;
+import javax.crypto.Mac;
+import javax.crypto.NoSuchPaddingException;
+import javax.crypto.SecretKey;
+import javax.crypto.ShortBufferException;
+import javax.crypto.spec.IvParameterSpec;
+import javax.crypto.spec.SecretKeySpec;
 import javax.swing.JFileChooser;
 
 
@@ -31,66 +46,128 @@ import javax.swing.JFileChooser;
 
 public class DSTP {
 
-    private final static String defaultPathToConfig = "./cryptoconfig.txt";
-    private String CONFIDENTIALIY;
-    private byte[] SYMMETRIC_KEY;
-    private int SYMMTRIC_KEY_SIZE;
-    private int IV_SIZE;
-    private byte[] IV;
-    private String INTEGRITY;
-    private String H;
-    private String MAC;
-    private byte[] MACKEY;
-    private int MACKEY_SIZE;
+    private final static String defaultPathToConfig = "./src/DSTP/cryptoconfig.txt";
 
-    public static void main(String[] args) throws IOException {
+    private static String ciphersuite = null;
+    private static IvParameterSpec ivSpec = null;
+    private static SecretKey key = null;
+    private static MessageDigest hash = null;
+    private static Mac hMac = null;
+    private static SecretKey hMacKey = null;
+
+
+    public static void main(String[] args) throws Exception {
         
         Properties prop = new Properties();
         try (FileInputStream fis = new FileInputStream(defaultPathToConfig)) {
+            System.out.println("Read Properties");
              prop.load(fis);
-         } catch (FileNotFoundException ex) {
-             // FileNotFoundException catch is optional and can be collapsed
-         } catch (IOException ex) {
-         }
-         
-         
-     System.out.println(prop.getProperty("CONFIDENTIALIY"));
-        send( Utils.toByteArray("123Testing123") );
-        
-     // expected port of the server (default = 1234)	
-     // the server hostname or IP address
-         // default is localhost, 127.0.0.1
-     String serverhost="localhost"; 
-         int port;
-     if (args.length == 2)
-            {
-            port = Integer.parseInt(args[0]);
-            serverhost = args[1];
-            }
-     else
-         {
-         System.out.println("Use: java ClientApp <port> <serverhost>");
-         System.exit(1);
-         }
-     }
-
-    private void ready(int port, String host) throws IOException {
-
-                 
-
-        
-        System.out.println("Select the file to send");
-        try {
-            DatagramSocket socket = new DatagramSocket();
-            InetAddress address = InetAddress.getByName(host);
-            byte[] fileByteArray = new byte[20];
-        	
-
-            
-        } catch (Exception ex) {
-            ex.printStackTrace();
-            System.exit(1);
+        } catch (FileNotFoundException ex) {
+            System.out.println(ex);
+        } catch (IOException ex) {
+            System.out.println(ex);
         }
+        ciphersuite=prop.getProperty("CONFIDENTIALIY"); 
+        System.out.println("Confidentiality Read: "+ ciphersuite);
+
+        
+        byte[] keyBytes = Base64.getDecoder().decode(prop.getProperty("SYMMETRIC_KEY"));
+        System.out.println("SymetricKey Read: "+Utils.toString(keyBytes));
+        
+
+        String symetricKey = prop.getProperty("SYMMETRIC_KEY");
+        int keylen = Integer.parseInt(prop.getProperty("SYMMTRIC_KEY_SIZE"));
+        System.out.println("Key: "+symetricKey+" Size: "+ keylen);
+        keyBytes = new byte[keylen/8];
+        
+
+        for (int i = 0; i < symetricKey.length(); i += 2) {
+            // Convert the pair of hex characters to a byte
+            keyBytes[i / 2] = (byte) (
+                (Character.digit(symetricKey.charAt(i), 16) << 4)  // First hex char
+                + Character.digit(symetricKey.charAt(i + 1), 16)   // Second hex char
+            );
+        }
+        System.out.println(" Size: "+ keyBytes.length);
+        
+
+        //key = new SecretKeySpec(keyBytes, ciphersuite.split("/")[0]);
+
+        key = new SecretKeySpec(keyBytes, "AES");
+        key = new SecreteKey
+
+
+
+
+
+
+        String ivHex = prop.getProperty("IV");
+        byte[] ivBytes = null;
+        if(!ivHex.equals("NULL")){
+            int len = Integer.parseInt(prop.getProperty("IV_SIZE"));
+            System.out.println("IV: "+ivHex+" Size: "+ len);
+            ivBytes = new byte[len];
+            for (int i = 0; i < len*2; i += 2) {
+                ivBytes[i / 2] = (byte) ((Character.digit(ivHex.charAt(i), 16) << 4)
+                                     + Character.digit(ivHex.charAt(i + 1), 16));
+            }
+        }
+
+        for (int i = 0; i < ivBytes.length; i++) {
+            System.out.printf("0x%02X", ivBytes[i]);
+            if (i < ivBytes.length - 1) {
+                System.out.print(", ");
+            }
+        }
+        System.out.println(Utils.toHex(ivBytes));
+        if(ivBytes != null)
+            ivSpec = new IvParameterSpec(ivBytes);
+
+
+
+
+
+
+
+        String integrity = prop.getProperty("INTEGRITY");
+        if (integrity.equals("H")) {
+            hash = MessageDigest.getInstance(prop.getProperty("H"));
+        }else{
+            hMac = Mac.getInstance(prop.getProperty("MAC"));
+            byte[] macKeyBytes = Base64.getDecoder().decode(prop.getProperty("MACKEY"));
+            hMacKey = new SecretKeySpec(macKeyBytes, prop.getProperty("MAC"));
+            System.out.println("hmacKey: "+ hMacKey);
+            System.out.println("hMac: "+ hMac);
+
+        }
+            
+
+        /*
+            Mac hMac = Mac.getInstance("HMacSHA256");
+            Key hMacKey =new SecretKeySpec(key.getEncoded(), "HMacSHA256");
+        
+         */
+
+
+        send( Utils.toByteArray("123Testing123"));  
+
+    }
+    private void init() throws IOException {
+        Properties prop = new Properties();
+        try (FileInputStream fis = new FileInputStream(defaultPathToConfig)) {
+            System.out.println("Read Properties");
+             prop.load(fis);
+        } catch (FileNotFoundException ex) {
+            System.out.println(ex);
+        } catch (IOException ex) {
+            System.out.println(ex);
+        }
+
+
+
+
+
+
     }
 
 
@@ -104,40 +181,55 @@ public class DSTP {
     Encrypted( Sequence Number(16bit) | DATA(variable) | HMAC(variable) )
  */
 
-    private void receave() throws IOException {
-        
+    private byte[] receave() throws IOException {
+        return new byte[10];
     }
 //    private void send(DatagramSocket socket, byte[] inByteArray, InetAddress address, int port) throws IOException {
 
-static private void  send(byte[] inByteArray) throws IOException {
+static private void send(byte[] inByteArray)  throws Exception {
         String serverHost = "localhost";
         int port = 2141;
 
         //Version(16bit) | Release(8bit) | Payload Len(16bit)  
         int sequenceNumber = 4; 
 
+        byte[] sendHash = new byte[hash.getDigestLength()];
 
-        String exampleHash = "966983bd574c04b5f682408f8af8c914b332df63c4de8067d9d2cec9c95727b4";
-        byte[] hash = Utils.toByteArray(exampleHash);
+        hash.update(inByteArray);
+        sendHash = hash.digest();
+
         System.out.println("Message : " + Utils.toString(inByteArray));
-        System.out.println("Hash : " + Utils.toString(hash));
-        System.out.println("HashLen : " + hash.length);
+        System.out.println("Hash : " + Utils.toString(sendHash));
+        System.out.println("HashSize : " + hash.getDigestLength());
+        System.out.println("HashLen : " + sendHash.length);
         
 
-        byte[] DSTPPayload = new byte[2 + inByteArray.length  + hash.length]; //+2 is for the sequence number
+        byte[] DSTPPayload = new byte[2 + inByteArray.length  + sendHash.length]; //+2 is for the sequence number
+
         
         DSTPPayload[0] = (byte) ((sequenceNumber >> 8) & 0xFF);
         DSTPPayload[1] = (byte) (sequenceNumber & 0xFF); 
         System.out.println("SequenceNumber : " + sequenceNumber);
 
-        
         System.arraycopy(inByteArray, 0, DSTPPayload, 2, inByteArray.length);
-        System.arraycopy(hash, 0, DSTPPayload, 2+inByteArray.length, hash.length);
+        System.arraycopy(sendHash, 0, DSTPPayload, 2+inByteArray.length, sendHash.length);
+
+        //ENCRYPTS DSTPPayload
+        Cipher cipher = Cipher.getInstance(ciphersuite);
+        if(ivSpec != null){
+            cipher.init(Cipher.ENCRYPT_MODE, key,ivSpec);
+        }else{
+            cipher.init(Cipher.ENCRYPT_MODE, key);
+        }
+
+
+        byte[] encryptDSTPayload = cipher.doFinal(DSTPPayload);
+
 
 
         int version = 0x009; 
         int release = 0x05; 
-        int payloadLen = DSTPPayload.length;
+        int payloadLen = encryptDSTPayload.length;
 
         byte[] DSTPHeader = new byte[5];
         DSTPHeader[0] = (byte) ((version >> 8) & 0xFF); 
@@ -149,10 +241,11 @@ static private void  send(byte[] inByteArray) throws IOException {
         DSTPHeader[4] = (byte) (payloadLen & 0xFF);
         
 
-        byte[] fullPayLoad = new byte[DSTPPayload.length + DSTPHeader.length];
+        byte[] fullPayLoad = new byte[encryptDSTPayload.length + DSTPHeader.length];
         System.arraycopy(DSTPHeader, 0, fullPayLoad, 0, DSTPHeader.length);
-        System.arraycopy(DSTPPayload, 0, fullPayLoad, DSTPHeader.length, DSTPPayload.length);
+        System.arraycopy(encryptDSTPayload, 0, fullPayLoad, DSTPHeader.length, encryptDSTPayload.length);
 
+        /* 
         
         while(true){
 
@@ -169,7 +262,10 @@ static private void  send(byte[] inByteArray) throws IOException {
             break;
         }
         }
+        */
 
+        System.out.println("----------------------------RECIEVING----------------------------");
+        //RECIEVING
 
         //HEADER
         int extractedVersion = ((fullPayLoad[0] & 0xFF) << 8) | (fullPayLoad[1] & 0xFF); // Combine to get version
@@ -179,24 +275,35 @@ static private void  send(byte[] inByteArray) throws IOException {
         System.out.println("Extracted Release: " + extractedRelease);
         System.out.println("Extracted Payload Length: " + extractedPayloadLen);
 
+
+
+
+        if(ivSpec != null){
+            cipher.init(Cipher.DECRYPT_MODE, key,ivSpec);
+        }else{
+            cipher.init(Cipher.DECRYPT_MODE, key);
+        }
+
+
+
+
+
+        byte[] extractedDSTPPayload =new byte[cipher.getOutputSize(extractedPayloadLen)];;
+        int ptLength=cipher.update(fullPayLoad,5, extractedPayloadLen, extractedDSTPPayload,0);
+        ptLength += cipher.doFinal(extractedDSTPPayload, ptLength);
         //PAYLOAD
-        int extractedSequenceNumber = ((fullPayLoad[5] & 0xFF) << 8) | (fullPayLoad[6] & 0xFF); // Sequence number
-        byte[] messageBytes = new byte[extractedPayloadLen -2- hash.length]; // Adjust as needed
-        System.arraycopy(fullPayLoad, 7, messageBytes, 0, messageBytes.length); // Adjust offset if needed
-        byte[] hashIn = new byte[hash.length];
-        System.arraycopy(fullPayLoad, 7+messageBytes.length, hashIn, 0, hashIn.length); // Adjust offset if needed
+
+
+        int extractedSequenceNumber = ((extractedDSTPPayload[0] & 0xFF) << 8) | (extractedDSTPPayload[1] & 0xFF); // Sequence number
         System.out.println("Extracted Sequence Number: " + extractedSequenceNumber);
-        System.out.println("Extracted Message: " + Utils.toString(messageBytes));
-        System.out.println("Extracted Hash: " + Utils.toString(hashIn));
-
-
-
-
-
-
-
-
-
+        byte[] extractedMessageBytes = new byte[extractedPayloadLen -2- sendHash.length]; // Adjust as needed
+        System.arraycopy(extractedDSTPPayload, 2, extractedMessageBytes, 0, extractedMessageBytes.length); // Adjust offset if needed
+        byte[] extractedHashIn = new byte[sendHash.length];
+        System.arraycopy(extractedDSTPPayload, 2+extractedMessageBytes.length, extractedHashIn, 0, extractedHashIn.length); // Adjust offset if needed
+        System.out.println("Extracted Message: " + Utils.toString(extractedMessageBytes));
+        System.out.println("Extracted Hash: " + Utils.toString(extractedHashIn));
+        hash.update(extractedMessageBytes);
+        System.out.println(" verified: " + MessageDigest.isEqual(hash.digest(), extractedHashIn));
 
 
 	      
@@ -243,6 +350,7 @@ static private void  send(byte[] inByteArray) throws IOException {
             }*/
         
     }
+
   
 
     

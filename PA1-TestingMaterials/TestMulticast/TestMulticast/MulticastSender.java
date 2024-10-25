@@ -26,10 +26,10 @@ public class MulticastSender {
         String msgsecret="topcsecret message, sent on: ";
         String msgdate = new Date().toString();
         msg=msgsecret+msgdate;
-	ms.send( new DatagramPacket( msg.getBytes(), msg.getBytes().length, group, port ) ) ;
+        
+	    ms.send( new DatagramPacket( msg.getBytes(), msg.getBytes().length, group, port ) ) ;
 
-	--more;    // Tirar o comentario se quizer mandar apenas "more" numero de vezes
-
+	    --more;    // Tirar o comentario se quizer mandar apenas "more" numero de vezes
 	try {
 	    Thread.sleep(1000*timeinterval);
 	} 

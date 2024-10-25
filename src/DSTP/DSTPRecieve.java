@@ -1,18 +1,18 @@
 package DSTP;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
+import java.security.MessageDigest;
 
 public class DSTPRecieve {
     public static void main(String[] args) {
         int port = 2141; // Port to listen   on
-        int hashLen = 64;
+        int hashLen = 20;
         try (DatagramSocket socket = new DatagramSocket(port)) {
 
 
             byte[] receiveBuffer = new byte[5]; // Buffer to receive data
 
             System.out.println("UDP Server is running...");
-
             while (true) {
                 DatagramPacket packet = new DatagramPacket(receiveBuffer, receiveBuffer.length);
                 socket.receive(packet); // Receive packet
@@ -41,7 +41,10 @@ public class DSTPRecieve {
                 byte[] hashIn = new byte[hashLen];
                 System.arraycopy(payload, 2+messageBytes.length, hashIn, 0, hashIn.length); // Adjust offset if needed
                 System.out.println("Extracted Hash: " + Utils.toString(hashIn));
+                MessageDigest hash = MessageDigest.getInstance("SHA1");
 
+                hash.update(messageBytes);
+                System.out.println(" verified: " + MessageDigest.isEqual(hash.digest(), hashIn));
                
 
                 
