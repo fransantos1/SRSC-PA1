@@ -82,8 +82,6 @@ public class DSTP {
         int keylen = Integer.parseInt(prop.getProperty("SYMMTRIC_KEY_SIZE"));
         System.out.println("Key: "+symetricKey+" Size: "+ keylen);
         keyBytes = new byte[keylen/8];
-        
-
         for (int i = 0; i < symetricKey.length(); i += 2) {
             // Convert the pair of hex characters to a byte
             keyBytes[i / 2] = (byte) (
@@ -96,8 +94,10 @@ public class DSTP {
         //key = keyBytes;
 
         
-        
-        //key = new SecretKeySpec(keyBytes, "AES");
+        key = new SecretKeySpec(keyBytes, ciphersuite.split("/")[0]);
+
+//      key = new SecretKeySpec(keyBytes, "DeSede");
+
         //! HERE
         //! na SecretKeySpec() o que meter?
        //! fazer do formato do packet q o prof pediu ou o que explicou 
@@ -118,15 +118,16 @@ public class DSTP {
                 ivBytes[i / 2] = (byte) ((Character.digit(ivHex.charAt(i), 16) << 4)
                                      + Character.digit(ivHex.charAt(i + 1), 16));
             }
+            for (int i = 0; i < ivBytes.length; i++) {
+                System.out.printf("0x%02X", ivBytes[i]);
+                if (i < ivBytes.length - 1) {
+                    System.out.print(", ");
+                }
+            }
+            System.out.println(Utils.toHex(ivBytes));
+            
         }
 
-        for (int i = 0; i < ivBytes.length; i++) {
-            System.out.printf("0x%02X", ivBytes[i]);
-            if (i < ivBytes.length - 1) {
-                System.out.print(", ");
-            }
-        }
-        System.out.println(Utils.toHex(ivBytes));
         if(ivBytes != null)
             ivSpec = new IvParameterSpec(ivBytes);
 
@@ -189,6 +190,7 @@ public class DSTP {
  */
 
     private byte[] receave() throws IOException {
+        
         return new byte[10];
     }
 //    private void send(DatagramSocket socket, byte[] inByteArray, InetAddress address, int port) throws IOException {
@@ -223,12 +225,12 @@ static private void send(byte[] inByteArray)  throws Exception {
 
         //ENCRYPTS DSTPPayload
         Cipher cipher = Cipher.getInstance(ciphersuite);
+
         if(ivSpec != null){
-            cipher.init(Cipher.ENCRYPT_MODE, keyBytes,ivSpec);
+            cipher.init(Cipher.ENCRYPT_MODE, key,ivSpec);
         }else{
             cipher.init(Cipher.ENCRYPT_MODE, key);
         }
-
 
         byte[] encryptDSTPayload = cipher.doFinal(DSTPPayload);
 
@@ -290,10 +292,6 @@ static private void send(byte[] inByteArray)  throws Exception {
         }else{
             cipher.init(Cipher.DECRYPT_MODE, key);
         }
-
-
-
-
 
         byte[] extractedDSTPPayload =new byte[cipher.getOutputSize(extractedPayloadLen)];;
         int ptLength=cipher.update(fullPayLoad,5, extractedPayloadLen, extractedDSTPPayload,0);
