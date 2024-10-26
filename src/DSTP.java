@@ -1,4 +1,4 @@
-package DSTP;
+
 
 import java.io.BufferedReader;
 import java.io.File;
@@ -46,7 +46,7 @@ import javax.swing.JFileChooser;
 
 public class DSTP {
 
-    private final static String defaultPathToConfig = "./src/DSTP/cryptoconfig.txt";
+    private final static String defaultPathToConfig = "./cryptoconfig.txt";
 
     private static String ciphersuite = null;
     private static IvParameterSpec ivSpec = null;
@@ -58,8 +58,12 @@ public class DSTP {
 
 
     public static void main(String[] args) throws Exception {
-        
         init();
+        if(args.length == 0){
+            send( Utils.toByteArray("123Testing123"));  
+        }else{
+            receave();
+        }
     }
 
 
@@ -79,8 +83,8 @@ public class DSTP {
         //! tem que se criar um iv novo para cada 
         //! SHASHA precisam de coisas adicionais
         
-        keyBytes = Base64.getDecoder().decode(prop.getProperty("SYMMETRIC_KEY"));
-        System.out.println("SymetricKey Read: "+Utils.toString(keyBytes));
+        //keyBytes = Base64.getDecoder().decode(prop.getProperty("SYMMETRIC_KEY"));
+        //ystem.out.println("SymetricKey Read: "+Utils.toString(keyBytes));
         
 
         String symetricKey = prop.getProperty("SYMMETRIC_KEY");
@@ -139,7 +143,7 @@ public class DSTP {
          */
 
 
-        send( Utils.toByteArray("123Testing123"));  
+        
 
 
 
@@ -159,20 +163,63 @@ public class DSTP {
     Encrypted( Sequence Number(16bit) | DATA(variable) | HMAC(variable) )
  */
 
-    private byte[] receave() throws IOException {
+ public static void receave() throws Exception {
+    Cipher cipher = Cipher.getInstance(ciphersuite);
+    int port = 2141;
+    System.out.println("----------------------------RECIEVING----------------------------");
+    //RECIEVING
+    byte[] fullPayLoad = new byte[8192];
+    try( DatagramSocket socket = new DatagramSocket(port)){
+        DatagramPacket packet = new DatagramPacket(fullPayLoad, fullPayLoad.length);
+        socket.receive(packet); // Receive packet
         
-        return new byte[10];
+        int extractedVersion = ((fullPayLoad[0] & 0xFF) << 8) | (fullPayLoad[1] & 0xFF); // Combine to get version
+        int extractedRelease = fullPayLoad[2] & 0xFF; // 8-bit release value
+        int extractedPayloadLen = ((fullPayLoad[3] & 0xFF) << 8) | (fullPayLoad[4] & 0xFF); // Combine to get payload length
+        System.out.println("Extracted Version: " + extractedVersion);
+        System.out.println("Extracted Release: " + extractedRelease);
+        System.out.println("Extracted Payload Length: " + extractedPayloadLen);
+
+        if(ivSpec != null){
+            cipher.init(Cipher.DECRYPT_MODE, key,ivSpec);
+        }else{
+            cipher.init(Cipher.DECRYPT_MODE, key);
+        }
+        byte[] extractedDSTPPayload =new byte[cipher.getOutputSize(extractedPayloadLen)];;
+        int ptLength=cipher.update(fullPayLoad,5, extractedPayloadLen, extractedDSTPPayload,0);
+        ptLength += cipher.doFinal(extractedDSTPPayload, ptLength);
+        //PAYLOAD
+    
+        int hashSize = hash.getDigestLength();
+    
+        int extractedSequenceNumber = ((extractedDSTPPayload[0] & 0xFF) << 8) | (extractedDSTPPayload[1] & 0xFF); // Sequence number
+        System.out.println("Extracted Sequence Number: " + extractedSequenceNumber);
+    
+        byte[] extractedMessageBytes = new byte[extractedPayloadLen -2- hashSize]; // Adjust as needed
+        System.arraycopy(extractedDSTPPayload, 2, extractedMessageBytes, 0, extractedMessageBytes.length); // Adjust offset if needed
+        System.out.println("Extracted Message: " + Utils.toString(extractedMessageBytes));
+    
+        
+        byte[] extractedHashIn = new byte[hashSize];
+        System.arraycopy(extractedDSTPPayload, 2+extractedMessageBytes.length, extractedHashIn, 0, extractedHashIn.length); // Adjust offset if needed
+        System.out.println("Extracted Hash: " + Utils.toString(extractedHashIn));
+    
+        hash.update(extractedMessageBytes);
+        System.out.println(" verified: " + MessageDigest.isEqual(hash.digest(), extractedHashIn));
+    
+
+
+
+
+    } catch (Exception e) {
+            e.printStackTrace();
     }
 
 
 
-
-
-
-
-//    private void send(DatagramSocket socket, byte[] inByteArray, InetAddress address, int port) throws IOException {
-
-static private void send(byte[] inByteArray)  throws Exception {
+    
+}
+public static void send(byte[] inByteArray)  throws Exception {
         String serverHost = "localhost";
         int port = 2141;
 
@@ -230,67 +277,22 @@ static private void send(byte[] inByteArray)  throws Exception {
         byte[] fullPayLoad = new byte[encryptDSTPayload.length + DSTPHeader.length];
         System.arraycopy(DSTPHeader, 0, fullPayLoad, 0, DSTPHeader.length);
         System.arraycopy(encryptDSTPayload, 0, fullPayLoad, DSTPHeader.length, encryptDSTPayload.length);
-
-        /* 
-        
+        System.out.println("Sendin");
         while(true){
 
-        try (DatagramSocket socket = new DatagramSocket()) {
-            InetAddress address = InetAddress.getByName(serverHost);
-            
-            DatagramPacket packet = new DatagramPacket(DSTPHeader, DSTPHeader.length, address, port);
-            socket.send(packet);
-            packet = new DatagramPacket(DSTPPayload, DSTPPayload.length, address, port);
-            socket.send(packet);
-            Thread.sleep(2000);
-        } catch (Exception e) {
-            e.printStackTrace();
-            break;
+            try (DatagramSocket socket = new DatagramSocket()) {
+                InetAddress address = InetAddress.getByName(serverHost);
+                
+                DatagramPacket packet = new DatagramPacket(fullPayLoad, fullPayLoad.length, address, port);
+                socket.send(packet);
+                break;
+            } catch (Exception e) {
+                e.printStackTrace();
+                break;
+            }
         }
-        }
-        */
-
-        System.out.println("----------------------------RECIEVING----------------------------");
-
-        byte[] incoming = new byte[5]; 
-        //RECIEVING
-
-        //HEADER
-        int extractedVersion = ((fullPayLoad[0] & 0xFF) << 8) | (fullPayLoad[1] & 0xFF); // Combine to get version
-        int extractedRelease = fullPayLoad[2] & 0xFF; // 8-bit release value
-        int extractedPayloadLen = ((fullPayLoad[3] & 0xFF) << 8) | (fullPayLoad[4] & 0xFF); // Combine to get payload length
-        System.out.println("Extracted Version: " + extractedVersion);
-        System.out.println("Extracted Release: " + extractedRelease);
-        System.out.println("Extracted Payload Length: " + extractedPayloadLen);
-
-
-        if(ivSpec != null){
-            cipher.init(Cipher.DECRYPT_MODE, key,ivSpec);
-        }else{
-            cipher.init(Cipher.DECRYPT_MODE, key);
-        }
-
-        byte[] extractedDSTPPayload =new byte[cipher.getOutputSize(extractedPayloadLen)];;
-        int ptLength=cipher.update(fullPayLoad,5, extractedPayloadLen, extractedDSTPPayload,0);
-        ptLength += cipher.doFinal(extractedDSTPPayload, ptLength);
-        //PAYLOAD
-
-        int hashSize = hash.getDigestLength();
-
-        int extractedSequenceNumber = ((extractedDSTPPayload[0] & 0xFF) << 8) | (extractedDSTPPayload[1] & 0xFF); // Sequence number
-        System.out.println("Extracted Sequence Number: " + extractedSequenceNumber);
-
-        byte[] extractedMessageBytes = new byte[extractedPayloadLen -2- hashSize]; // Adjust as needed
-        System.arraycopy(extractedDSTPPayload, 2, extractedMessageBytes, 0, extractedMessageBytes.length); // Adjust offset if needed
-        System.out.println("Extracted Message: " + Utils.toString(extractedMessageBytes));
-
         
-        byte[] extractedHashIn = new byte[hashSize];
-        System.arraycopy(extractedDSTPPayload, 2+extractedMessageBytes.length, extractedHashIn, 0, extractedHashIn.length); // Adjust offset if needed
-        System.out.println("Extracted Hash: " + Utils.toString(extractedHashIn));
 
-        hash.update(extractedMessageBytes);
-        System.out.println(" verified: " + MessageDigest.isEqual(hash.digest(), extractedHashIn));
 
     }
 

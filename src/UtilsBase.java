@@ -1,4 +1,4 @@
-package DSTP;
+
 /**
  * Classe auxiliar
  */
