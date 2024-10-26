@@ -59,6 +59,11 @@ public class DSTP {
 
     public static void main(String[] args) throws Exception {
         
+        init();
+    }
+
+
+    private static void init() throws Exception {
         Properties prop = new Properties();
         try (FileInputStream fis = new FileInputStream(defaultPathToConfig)) {
             System.out.println("Read Properties");
@@ -92,22 +97,7 @@ public class DSTP {
         System.out.println(" Size: "+ keyBytes.length);
         
         //key = keyBytes;
-
-        
         key = new SecretKeySpec(keyBytes, ciphersuite.split("/")[0]);
-
-//      key = new SecretKeySpec(keyBytes, "DeSede");
-
-        //! HERE
-        //! na SecretKeySpec() o que meter?
-       //! fazer do formato do packet q o prof pediu ou o que explicou 
-        //! se meter CMAC o 
-
-
-
-
-
-
         String ivHex = prop.getProperty("IV");
         byte[] ivBytes = null;
         if(!ivHex.equals("NULL")){
@@ -124,18 +114,10 @@ public class DSTP {
                     System.out.print(", ");
                 }
             }
-            System.out.println(Utils.toHex(ivBytes));
-            
+            System.out.println(Utils.toHex(ivBytes));   
         }
-
         if(ivBytes != null)
             ivSpec = new IvParameterSpec(ivBytes);
-
-
-
-
-
-
 
         String integrity = prop.getProperty("INTEGRITY");
         if (integrity.equals("H")) {
@@ -159,18 +141,6 @@ public class DSTP {
 
         send( Utils.toByteArray("123Testing123"));  
 
-    }
-    private void init() throws IOException {
-        Properties prop = new Properties();
-        try (FileInputStream fis = new FileInputStream(defaultPathToConfig)) {
-            System.out.println("Read Properties");
-             prop.load(fis);
-        } catch (FileNotFoundException ex) {
-            System.out.println(ex);
-        } catch (IOException ex) {
-            System.out.println(ex);
-        }
-
 
 
 
@@ -193,6 +163,13 @@ public class DSTP {
         
         return new byte[10];
     }
+
+
+
+
+
+
+
 //    private void send(DatagramSocket socket, byte[] inByteArray, InetAddress address, int port) throws IOException {
 
 static private void send(byte[] inByteArray)  throws Exception {
@@ -274,6 +251,8 @@ static private void send(byte[] inByteArray)  throws Exception {
         */
 
         System.out.println("----------------------------RECIEVING----------------------------");
+
+        byte[] incoming = new byte[5]; 
         //RECIEVING
 
         //HEADER
@@ -283,8 +262,6 @@ static private void send(byte[] inByteArray)  throws Exception {
         System.out.println("Extracted Version: " + extractedVersion);
         System.out.println("Extracted Release: " + extractedRelease);
         System.out.println("Extracted Payload Length: " + extractedPayloadLen);
-
-
 
 
         if(ivSpec != null){
