@@ -38,7 +38,11 @@ public class TFTPClient {
 			
 			
 			InetAddress server = InetAddress.getByName(host);
-			
+			try {
+				DSTP.init();
+			} catch (Exception e) {
+				e.printStackTrace();
+			}
 			//process read request
 			if(type.matches("R")){
 				TFTPclientRRQ r = new TFTPclientRRQ(server, fileName, mode);}

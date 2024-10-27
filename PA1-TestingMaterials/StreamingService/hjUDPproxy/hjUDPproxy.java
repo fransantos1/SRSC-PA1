@@ -16,19 +16,19 @@ import java.util.stream.Collectors;
 
 class hjUDPproxy {
     public static void main(String[] args) throws Exception {
-	//        InputStream inputStream = new FileInputStream("config.properties");
-	//        if (inputStream == null) {
-	//            System.err.println("Configuration file not found!");
-	//            System.exit(1);
-	//}
+if (args.length != 2)
+        {
+        System.out.println("Use: hjUDPproxy <endpoint1> <endpoint2>");
+        System.out.println("<endpoint1>: endpoint for receiving stream");
+        System.out.println("<endpoint2>: endpoint of media player");
 	
-        //Properties properties = new Properties();
-        //properties.load(inputStream);
-	//String remote = properties.getProperty("remote");
-        //String destinations = properties.getProperty("localdelivery");
-
-	String remote=args[0];
-	String destinations=args[1];	
+	System.out.println("Ex: hjUDPproxy 224.2.2.2:9000  127.0.0.1:8888");
+	System.out.println("Ex: hjUDPproxy 127.0.0.1:10000 127.0.0.1:8888");
+	System.exit(0);
+	}
+	
+	String remote=args[0]; // receive mediastream from this rmote endpoint
+	String destinations=args[1]; //resend mediastream to this destination endpoint	
 	    
 
         SocketAddress inSocketAddress = parseSocketAddress(remote);
@@ -49,24 +49,34 @@ class hjUDPproxy {
 	//	MulticastSocket ms = new MulticastSocket(9999);
 	//        ms.joinGroup(InetAddress.getByName("239.9.9.9"));
 
+	int countframes=0;
         DatagramSocket outSocket = new DatagramSocket();
         byte[] buffer = new byte[4 * 1024];
+        DSTP.init();
         while (true) {
+
             DatagramPacket inPacket = new DatagramPacket(buffer, buffer.length);
 	    // If listen a remote unicast server
 	    // uncomment the following line
 
-	    inSocket.receive(inPacket);  // if remote is unicast
+            DSTP.receave(inSocket, inPacket);
+            
+
+	    //inSocket.receive(inPacket);  // if remote is unicast
 
 	    // If listen a remote multcast server
 	    // uncomment the following line
 
             //ms.receive(inPacket);          // if remote is multicast
 
-            System.out.print(":");           // debug
+	    // Just for debug... 
+            //countframes++;
+            //System.out.println(":"+countframes);           // debug	    
+            //System.out.print(":");           // debug
+            
             for (SocketAddress outSocketAddress : outSocketAddressSet) 
-		{
-                outSocket.send(new DatagramPacket(buffer, inPacket.getLength(), outSocketAddress));
+		    {
+                outSocket.send(new DatagramPacket(inPacket.getData(), inPacket.getLength(), outSocketAddress));
             }
         }
     }

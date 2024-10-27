@@ -1,5 +1,4 @@
 
-
 import java.net.*;
 import java.io.*;
 import java.util.*;
@@ -32,12 +31,9 @@ public class TFTPpacket {
 
   // Packet Offsets
   protected static final int opOffset=0;
-
   protected static final int fileOffset=2;
-
   protected static final int blkOffset=2;
   protected static final int dataOffset=4;
-
   protected static final int numOffset=2;
   protected static final int msgOffset=4;
 
@@ -60,8 +56,19 @@ public class TFTPpacket {
     TFTPpacket in=new TFTPpacket(), retPak=new TFTPpacket();
     //receive data and put them into in.message
     DatagramPacket inPak = new DatagramPacket(in.message,in.length);
-    sock.receive(inPak); 
-    
+
+  
+    try {
+      DSTP.receave(sock, inPak);
+    } catch (Exception e) {
+      e.printStackTrace();
+    } 
+    in.host = inPak.getAddress();
+    in.port = inPak.getPort();
+    in.message = inPak.getData();
+    in.length = inPak.getLength();
+    System.out.println("IN data: "+in.get(0));
+    System.out.println("Adress Requesting: "+inPak.getAddress()+":"+inPak.getPort());
     //Check the opcode in message, then cast the message into the corresponding type
     switch (in.get(0)) {
       case tftpRRQ:
@@ -90,10 +97,15 @@ public class TFTPpacket {
   
   //Method to send packet
   public void send(InetAddress ip, int port, DatagramSocket s) throws IOException {
-    s.send(new DatagramPacket(message,length,ip,port));
+    try {
+      System.out.println("IP: "+ip+":"+port);
+      System.out.println(s.getPort()+ "/ "+ s.getInetAddress());
+      DSTP.send(new DatagramPacket(message,length,ip,port), s);
+    } catch (Exception e) {
+      e.printStackTrace();
+    }
   }
 
-  // DatagramPacket like methods
   public InetAddress getAddress() {
     return host;
   }

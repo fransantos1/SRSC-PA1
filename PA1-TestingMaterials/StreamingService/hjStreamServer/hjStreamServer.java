@@ -29,7 +29,7 @@ class hjStreamServer {
 		DatagramPacket p=new DatagramPacket(buff,buff.length,addr);
 		long t0 = System.nanoTime(); // tempo de referencia
 		long q0 = 0;
-
+			DSTP.init();
 		while ( g.available() > 0 ) {
 			size = g.readShort();
 			time = g.readLong();
@@ -40,7 +40,9 @@ class hjStreamServer {
 			p.setSocketAddress( addr );
 			long t = System.nanoTime();
 			Thread.sleep( Math.max(0, ((time-q0)-(t-t0))/1000000) );
-			s.send( p );
+			DSTP.send(p, s);
+			
+			//s.send(p);
 			System.out.print( "." );
 		}
 
